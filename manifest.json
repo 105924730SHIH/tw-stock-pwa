@@ -1,121 +1,35 @@
-<!DOCTYPE html>
-<html lang="zh-Hant">
-<head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
-<title>台股技術分析報表產生器</title>
-<meta name="description" content="從 Google Sheet 讀取股票代號，自動抓取股價、計算技術指標並產生投資建議 Excel 報表" />
-
-<!-- PWA -->
-<link rel="manifest" href="./manifest.json" />
-<meta name="theme-color" content="#1f497d" />
-<link rel="icon" href="./icons/favicon-32.png" sizes="32x32" type="image/png" />
-<link rel="icon" href="./icons/favicon-16.png" sizes="16x16" type="image/png" />
-<link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
-
-<!-- iOS 安裝支援 -->
-<meta name="apple-mobile-web-app-capable" content="yes" />
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-<meta name="apple-mobile-web-app-title" content="台股報表" />
-
-<link rel="stylesheet" href="./style.css" />
-</head>
-<body>
-<div id="app">
-
-  <!-- ── Top App Bar ─────────────────────────────────── -->
-  <div id="topbar">
-    <div class="brand">
-      <img src="./icons/icon-96.png" alt="" />
-      <span class="title">台股技術分析報表產生器</span>
-    </div>
-    <span id="status-dot" title="連線狀態"></span>
-    <button class="icon-btn" id="reload-btn" title="重新整理" aria-label="重新整理">⟳</button>
-    <button class="icon-btn" id="settings-btn" title="設定後端網址" aria-label="設定">⚙</button>
-  </div>
-
-  <!-- ── Main content: embeds the existing Gradio app.py UI ── -->
-  <div id="main">
-    <iframe
-      id="app-frame"
-      title="台股技術分析報表產生器"
-      allow="clipboard-write"
-    ></iframe>
-
-    <!-- Settings overlay -->
-    <div id="settings-screen" class="screen">
-      <div class="card">
-        <h2>🔧 連接後端服務</h2>
-        <p class="hint">
-          本 App 是既有 Python / Gradio 分析工具（<code>app.py</code>）的
-          PWA 外殼。請先在伺服器或本機執行：<br />
-          <code>python app.py</code><br />
-          再輸入該服務的網址（例如 <code>http://localhost:7860</code>
-          或您部署到雲端後的網域）。
-        </p>
-
-        <label for="backend-url-input">後端服務網址</label>
-        <input
-          id="backend-url-input"
-          type="url"
-          inputmode="url"
-          autocomplete="off"
-          autocapitalize="off"
-          spellcheck="false"
-          placeholder="http://localhost:7860"
-        />
-
-        <div class="presets" id="presets-wrap"></div>
-
-        <div class="row-btns">
-          <button class="ghost" id="cancel-settings-btn">取消</button>
-          <button class="primary" id="connect-btn">連線</button>
-        </div>
-
-        <div class="badge">🔒 網址僅儲存在本機裝置（localStorage）</div>
-      </div>
-    </div>
-
-    <!-- Loading overlay -->
-    <div id="loading-screen" class="screen hidden">
-      <div class="card" style="text-align:center;">
-        <div class="spinner"></div>
-        <h2>連線中…</h2>
-        <p class="hint">正在連接分析服務，請稍候</p>
-      </div>
-    </div>
-
-    <!-- Offline / connect-failed overlay -->
-    <div id="offline-screen" class="screen hidden">
-      <div class="card" style="text-align:center;">
-        <h2>⚠️ 無法連接服務</h2>
-        <p class="hint">
-          目前無法連上後端服務，請確認：<br />
-          1. <code>app.py</code> 是否已啟動<br />
-          2. 網址是否正確、裝置是否連上同一網路<br />
-          3. 網路連線是否正常
-        </p>
-        <div class="row-btns">
-          <button class="ghost" id="open-settings-from-offline">變更網址</button>
-          <button class="primary" id="retry-offline-btn">重試</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ── Install toast ───────────────────────────────── -->
-  <div id="install-toast" class="hidden">
-    <img src="./icons/icon-96.png" alt="" width="40" height="40" style="border-radius:10px;" />
-    <div class="txt">
-      <b>安裝到主畫面</b>
-      像原生 App 一樣快速啟動，並支援離線提示畫面
-    </div>
-    <button class="ghost" id="dismiss-install-btn">稍後</button>
-    <button class="primary" id="install-btn" style="flex:none;padding:10px 14px;">安裝</button>
-  </div>
-
-</div>
-
-<script src="./app.js"></script>
-</body>
-</html>
+{
+  "name": "台股技術分析報表產生器",
+  "short_name": "台股報表",
+  "description": "從 Google Sheet 讀取股票代號，自動抓取股價、計算技術指標並產生投資建議 Excel 報表",
+  "id": "/",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "browser"],
+  "orientation": "portrait-primary",
+  "background_color": "#0b1220",
+  "theme_color": "#1f497d",
+  "lang": "zh-TW",
+  "dir": "ltr",
+  "categories": ["finance", "productivity", "business"],
+  "icons": [
+    { "src": "icons/icon-72.png", "sizes": "72x72", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-96.png", "sizes": "96x96", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-128.png", "sizes": "128x128", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-144.png", "sizes": "144x144", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-152.png", "sizes": "152x152", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-384.png", "sizes": "384x384", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    {
+      "name": "開始產生報表",
+      "short_name": "產生報表",
+      "url": "./index.html?action=run",
+      "icons": [{ "src": "icons/icon-96.png", "sizes": "96x96", "type": "image/png" }]
+    }
+  ]
+}
