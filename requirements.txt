@@ -1,0 +1,8 @@
+gradio
+yfinance
+openpyxl
+pandas
+numpy
+requests
+lxml
+resend
