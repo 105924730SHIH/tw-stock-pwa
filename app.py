@@ -1,20 +1,21 @@
 # -*- coding: utf-8 -*-
 """
-台股技術分析報表產生器 + Email 寄送（Gradio 介面版｜PWA 整合版）
+台股技術分析報表產生器 + Email 寄送（Gradio 介面版｜Render 部署版）
 
-與原版差異：
-    - 邏輯完全不變（抓股價、算指標、產生 Excel、寄 Email）。
-    - 改用 FastAPI 包裝，將 Gradio 掛載於 /app 路徑，
-      並在同一個服務上提供 index.html / manifest.json / sw.js / icons/，
-      讓整個工具可作為 PWA 安裝、離線開啟外殼。
+這是原本的 Gradio 後端程式（未變更任何分析邏輯）。
+本資料夾內的 index.html / manifest.json / sw.js / icons 為新增的
+PWA 外殼，會以 iframe 方式包住這個 Gradio 服務，讓使用者能把它
+「安裝」到手機或電腦桌面、取得應用程式圖示，並在離線時顯示提示畫面。
 
 安裝套件：
-    pip install gradio yfinance openpyxl pandas numpy requests lxml resend fastapi uvicorn
+    pip install -r requirements.txt
 
 執行：
     python app.py
-    然後開啟 http://127.0.0.1:7860/  （PWA 外殼，內嵌 /app 的 Gradio 介面）
-    或直接開啟 http://127.0.0.1:7860/app  （純 Gradio 介面，無 PWA 外殼）
+
+啟動後預設會在 http://localhost:7860 提供服務，
+接著開啟 index.html（或部署到網頁伺服器後開啟該網址），
+在 PWA 的「設定」中輸入 http://localhost:7860 即可連線使用。
 """
 
 import os
@@ -34,13 +35,6 @@ from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 from openpyxl.chart import LineChart, Reference
-
-from fastapi import FastAPI
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
-
-
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -617,6 +611,7 @@ def run_pipeline(sheet_id, gid, resend_api_key, email_from, email_to, send_email
         log_lines.append(msg)
         return "\n".join(log_lines)
 
+    # ── 基本檢查 ──
     sheet_id = (sheet_id or "").strip()
     gid = (gid or "0").strip()
     resend_api_key = (resend_api_key or "").strip()
@@ -636,6 +631,7 @@ def run_pipeline(sheet_id, gid, resend_api_key, email_from, email_to, send_email
     output_path = "tw_stocks_3months.xlsx"
 
     try:
+        # ── 讀取股票清單 ──
         yield log("正在讀取 Google Sheet 股票清單..."), None, _status("busy", "讀取股票清單中")
         url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&gid={gid}"
         df1 = pd.read_csv(url)
@@ -648,6 +644,7 @@ def run_pipeline(sheet_id, gid, resend_api_key, email_from, email_to, send_email
             return
         yield log(f"取得 {len(tickers)} 檔股票代號：{', '.join(tickers)}"), None, _status("busy", f"共 {len(tickers)} 檔待處理")
 
+        # ── 中文名稱對照 ──
         yield log("正在抓取台股中文名稱對照表..."), None, _status("busy", "建立名稱對照表")
         tw_name_map = build_tw_name_map()
         yield log(f"取得 {len(tw_name_map)} 檔中文名稱"), None, _status("busy", "名稱對照完成")
@@ -712,6 +709,7 @@ def run_pipeline(sheet_id, gid, resend_api_key, email_from, email_to, send_email
         if failed:
             yield log(f"   失敗清單：{', '.join(failed)}"), None, _status("busy", "Excel 產生完成")
 
+        # ── 寄送 Email（選用）──
         if send_email:
             yield log("\n正在寄送 Email..."), output_path, _status("busy", "寄送 Email 中")
             resend.api_key = resend_api_key
@@ -753,6 +751,7 @@ def run_pipeline(sheet_id, gid, resend_api_key, email_from, email_to, send_email
 
 
 def _status(kind, text):
+    """回傳一段狀態列 HTML，供 UI 顯示彩色狀態徽章。"""
     palette = {
         "idle":  ("#94a3b8", "#f1f5f9", "⏳"),
         "busy":  ("#2563eb", "#eff6ff", "🔄"),
@@ -769,7 +768,7 @@ def _status(kind, text):
 
 
 # ══════════════════════════════════════════════════════════════════════════
-# Gradio 介面
+# Gradio 介面（精緻化版）
 # ══════════════════════════════════════════════════════════════════════════
 CUSTOM_CSS = """
 :root {
@@ -788,36 +787,50 @@ CUSTOM_CSS = """
     margin-bottom: 18px;
     box-shadow: 0 8px 24px rgba(31,73,125,0.25);
 }
-#hero * { color: #ffffff !important; }
-#hero h1 {
-    margin: 0 0 6px 0; font-size: 26px; font-weight: 800;
-    letter-spacing: 0.5px; color: #ffffff !important;
+#hero * {
+    color: #ffffff !important;
 }
-#hero p { margin: 0; opacity: 1; font-size: 14.5px; line-height: 1.6; color: #ffffff !important; }
+#hero h1 {
+    margin: 0 0 6px 0;
+    font-size: 26px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    color: #ffffff !important;
+}
+#hero p {
+    margin: 0;
+    opacity: 1;
+    font-size: 14.5px;
+    line-height: 1.6;
+    color: #ffffff !important;
+}
 .panel-card {
     border-radius: 14px !important;
     border: 1px solid #e5e9f0 !important;
     box-shadow: 0 1px 3px rgba(15,23,42,0.06) !important;
 }
-.section-title { font-weight: 700 !important; font-size: 15px !important; color: #1f2937 !important; margin-bottom: 2px !important; }
+.section-title {
+    font-weight: 700 !important;
+    font-size: 15px !important;
+    color: #1f2937 !important;
+    margin-bottom: 2px !important;
+}
 #run-btn {
-    height: 48px !important; font-size: 16px !important; font-weight: 700 !important;
-    border-radius: 12px !important; box-shadow: 0 4px 12px rgba(37,99,235,0.35) !important;
+    height: 48px !important;
+    font-size: 16px !important;
+    font-weight: 700 !important;
+    border-radius: 12px !important;
+    box-shadow: 0 4px 12px rgba(37,99,235,0.35) !important;
 }
 #log-box textarea {
     font-family: "SFMono-Regular", Consolas, Menlo, monospace !important;
-    font-size: 12.5px !important; line-height: 1.5 !important;
-    background: #0b1220 !important; color: #d1e2ff !important; border-radius: 12px !important;
+    font-size: 12.5px !important;
+    line-height: 1.5 !important;
+    background: #0b1220 !important;
+    color: #d1e2ff !important;
+    border-radius: 12px !important;
 }
 footer {visibility: hidden}
-"""
-
-# 注入 PWA meta 標籤：讓 /app 這頁本身也具備安裝資訊（可選，主要安裝流程走 index.html）
-PWA_HEAD = """
-<link rel="manifest" href="/manifest.json" />
-<meta name="theme-color" content="#1f497d" />
-<link rel="icon" href="/icons/favicon.ico" />
-<link rel="apple-touch-icon" href="/icons/icon-180.png" />
 """
 
 THEME = gr.themes.Soft(
@@ -832,7 +845,7 @@ THEME = gr.themes.Soft(
     block_shadow="0 1px 3px rgba(15,23,42,0.06)",
 )
 
-with gr.Blocks(title="台股技術分析報表產生器", theme=THEME, css=CUSTOM_CSS, head=PWA_HEAD) as demo:
+with gr.Blocks(title="台股技術分析報表產生器") as demo:
 
     gr.HTML(
         """
@@ -847,6 +860,7 @@ with gr.Blocks(title="台股技術分析報表產生器", theme=THEME, css=CUSTO
     )
 
     with gr.Row(equal_height=False):
+        # ── 左側：設定區 ──
         with gr.Column(scale=4):
             with gr.Group(elem_classes="panel-card"):
                 gr.Markdown("### 📊 資料來源設定", elem_classes="section-title")
@@ -856,30 +870,44 @@ with gr.Blocks(title="台股技術分析報表產生器", theme=THEME, css=CUSTO
                     info="Sheet 需包含 TICKERS 欄位，列出股票代號（如 2330.TW）",
                 )
                 gid_in = gr.Textbox(
-                    label="Sheet GID", value="0", placeholder="例如：0",
+                    label="Sheet GID",
+                    value="0",
+                    placeholder="例如：0",
                     info="工作表分頁的 gid 參數，預設分頁通常為 0",
                 )
 
             with gr.Accordion("📧 Email 寄送設定（選用）", open=True, elem_classes="panel-card"):
                 send_email_chk = gr.Checkbox(label="產生報表後自動寄送 Email", value=True)
-                resend_key_in = gr.Textbox(label="Resend API Key", type="password", placeholder="re_xxxxxxxxxxxx")
+                resend_key_in = gr.Textbox(
+                    label="Resend API Key",
+                    type="password",
+                    placeholder="re_xxxxxxxxxxxx",
+                )
                 email_from_in = gr.Textbox(
-                    label="寄件者 (From)", value="Acme <onboarding@resend.dev>",
+                    label="寄件者 (From)",
+                    value="Acme <onboarding@resend.dev>",
                     placeholder="Name <you@yourdomain.com>",
                 )
                 email_to_in = gr.Textbox(
-                    label="收件者 (To)", placeholder="you@example.com, other@example.com",
+                    label="收件者 (To)",
+                    placeholder="you@example.com, other@example.com",
                     info="多筆收件人請用逗號分隔",
                 )
 
             run_btn = gr.Button("🚀 開始產生報表", variant="primary", elem_id="run-btn")
+
             status_out = gr.HTML(_status("idle", "尚未開始"))
 
+        # ── 右側：執行紀錄 / 下載 ──
         with gr.Column(scale=6):
             with gr.Group(elem_classes="panel-card"):
                 gr.Markdown("### 📋 執行紀錄", elem_classes="section-title")
                 log_out = gr.Textbox(
-                    label=None, show_label=False, lines=22, max_lines=40, elem_id="log-box",
+                    label=None,
+                    show_label=False,
+                    lines=22,
+                    max_lines=40,
+                    elem_id="log-box",
                     placeholder="按下「開始產生報表」後，執行過程會即時顯示在這裡...",
                 )
             with gr.Group(elem_classes="panel-card"):
@@ -898,42 +926,14 @@ with gr.Blocks(title="台股技術分析報表產生器", theme=THEME, css=CUSTO
         outputs=[log_out, file_out, status_out],
     )
 
-
-# ══════════════════════════════════════════════════════════════════════════
-# FastAPI + PWA 外殼掛載
-#   /              -> index.html（PWA 外殼，內嵌下方 /app）
-#   /manifest.json -> PWA manifest
-#   /sw.js         -> Service Worker（scope 需為根目錄，故不可放進 /static）
-#   /icons/*       -> App 圖示
-#   /app           -> 實際 Gradio 介面
-# ══════════════════════════════════════════════════════════════════════════
-app = FastAPI(title="台股技術分析報表產生器")
-
-
-@app.get("/")
-def pwa_shell():
-    return FileResponse(os.path.join(BASE_DIR, "index.html"))
-
-
-@app.get("/manifest.json")
-def pwa_manifest():
-    return FileResponse(os.path.join(BASE_DIR, "manifest.json"), media_type="application/manifest+json")
-
-
-@app.get("/sw.js")
-def pwa_service_worker():
-    # Service Worker 必須從根目錄提供，瀏覽器才會授予根目錄 scope
-    return FileResponse(os.path.join(BASE_DIR, "sw.js"), media_type="application/javascript")
-
-
-app.mount("/icons", StaticFiles(directory=os.path.join(BASE_DIR, "icons")), name="icons")
-
-app = gr.mount_gradio_app(app, demo, path="/app")
-
-
 if __name__ == "__main__":
-    import uvicorn
-    port = int(os.environ.get("PORT", 7860))
-    print(f"PWA 外殼： http://127.0.0.1:{port}/")
-    print(f"Gradio 介面：http://127.0.0.1:{port}/app")
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    # Render 會透過 PORT 環境變數指定公開連接埠；本機執行時則使用 7860。
+    port = int(os.environ.get("PORT", "7860"))
+
+    demo.queue().launch(
+        server_name="0.0.0.0",
+        server_port=port,
+        theme=THEME,
+        css=CUSTOM_CSS,
+        show_error=True,
+    )
